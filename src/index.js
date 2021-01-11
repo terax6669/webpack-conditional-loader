@@ -1,34 +1,27 @@
 /* eslint-disable no-eval */
-const os = require('os');
+
+const startBlockRegex = /[<!--|\/\/] #if ([\s\S]*?)(-->)?$/
+const endBlockRegex = /[<!--|\/\/] #endif/
 
 function getPredicate (line) {
-  return /\/\/ #if (.*)/.exec(line)[1]
+  return startBlockRegex.exec(line)[1]
 }
 
 function searchBlocks (sourceByLine) {
   const blocks = []
   let current = 0
-  const startBlock = /\/\/ #if .*/
-  const endBlock = /\/\/ #endif$/
 
   while (current < sourceByLine.length) {
-    if (startBlock.test(sourceByLine[current])) {
+    const currentLine = sourceByLine[current]
+    if (startBlockRegex.test(currentLine)) {
       blocks[current] = {
         type: 'begin',
-        predicate: getPredicate(sourceByLine[current])
+        predicate: getPredicate(currentLine)
       }
-
-      current += 1
-      continue
-    }
-
-    if (endBlock.test(sourceByLine[current])) {
+    } else if (endBlockRegex.test(currentLine)) {
       blocks[current] = {
         type: 'end'
       }
-
-      current += 1
-      continue
     }
 
     current += 1
@@ -37,53 +30,41 @@ function searchBlocks (sourceByLine) {
   return blocks
 }
 
-function getTruthyBlocks (blocks) {
-  const truthyBlocks = blocks.slice()
-  let i = 0
-  let action = ''
-
-  while (i < truthyBlocks.length) {
-    if (truthyBlocks[i] && truthyBlocks[i].type === 'begin') {
-      if (eval(truthyBlocks[i].predicate)) {
-        truthyBlocks[i] = undefined
-        action = 'deleteNextEndBlock'
-      }
+function isBlockTruthy (block) {
+  if (block.type === 'begin') {
+    if (eval(block.predicate)) {
+      return true
     }
-
-    if (truthyBlocks[i] && truthyBlocks[i].type === 'end' && action === 'deleteNextEndBlock') {
-      truthyBlocks[i] = undefined
-      action = ''
-    }
-
-    i += 1
   }
 
-  return truthyBlocks
+  return false
 }
 
-function commentCodeInsideBlocks (sourceByLine, blocks) {
+function removeBlocks (sourceByLine, blocks) {
   let currentBlock
   let i = 0
-  let action = ''
+  let action = false
   let sourceByLineTransformed = sourceByLine.slice()
 
   while (i < sourceByLine.length) {
     currentBlock = blocks[i]
 
     if (currentBlock && currentBlock.type === 'begin') {
-      action = 'commentLine'
+      action = !isBlockTruthy(currentBlock)
+      sourceByLineTransformed[i] = null
       i += 1
       continue
     }
 
     if (currentBlock && currentBlock.type === 'end') {
-      action = ''
+      action = false
+      sourceByLineTransformed[i] = null
       i += 1
       continue
     }
 
-    if (action === 'commentLine') {
-      sourceByLineTransformed[i] = commentLine(sourceByLine[i])
+    if (action) {
+      sourceByLineTransformed[i] = null
     }
 
     i += 1
@@ -92,18 +73,15 @@ function commentCodeInsideBlocks (sourceByLine, blocks) {
   return sourceByLineTransformed
 }
 
-function commentLine (line) {
-  return `// ${line}`
-}
-
 module.exports = function (source) {
   try {
-    const sourceByLine = source.split(os.EOL)
+    const sourceByLine = source.split(/\r\n|\n/)
     const blocks = searchBlocks(sourceByLine)
-    const truthyBlocks = getTruthyBlocks(blocks)
-    const transformedSource = commentCodeInsideBlocks(sourceByLine, truthyBlocks)
-
-    return transformedSource.join('\n')
+    if (blocks.length) {
+      const transformedSource = removeBlocks(sourceByLine, blocks)
+      return transformedSource.filter((v) => v !== null && v.trim()).join('\n')
+    }
+    return source
   } catch (error) {
     console.error(error)
     throw error
