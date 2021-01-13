@@ -1,10 +1,10 @@
 /* eslint-disable no-eval */
 
-const startBlockRegex = /[<!--|\/\/] #if ([\s\S]*?)(-->)?$/
-const endBlockRegex = /[<!--|\/\/] #endif/
+const startBlockRegex = /(<!--|\/\/) #if ([\s\S]*?)(-->)?$/
+const endBlockRegex = /(<!--|\/\/) #endif[\s\S]*?(-->)?$/
 
 function getPredicate (line) {
-  return startBlockRegex.exec(line)[1]
+  return startBlockRegex.exec(line)[2]
 }
 
 function searchBlocks (sourceByLine) {
@@ -16,11 +16,11 @@ function searchBlocks (sourceByLine) {
     if (startBlockRegex.test(currentLine)) {
       blocks[current] = {
         type: 'begin',
-        predicate: getPredicate(currentLine)
+        predicate: getPredicate(currentLine),
       }
     } else if (endBlockRegex.test(currentLine)) {
       blocks[current] = {
-        type: 'end'
+        type: 'end',
       }
     }
 
@@ -51,14 +51,18 @@ function removeBlocks (sourceByLine, blocks) {
 
     if (currentBlock && currentBlock.type === 'begin') {
       action = !isBlockTruthy(currentBlock)
-      sourceByLineTransformed[i] = null
+      sourceByLineTransformed[i] = sourceByLineTransformed[i].replace(startBlockRegex, '')
       i += 1
       continue
     }
 
     if (currentBlock && currentBlock.type === 'end') {
+      if (action) {
+          sourceByLineTransformed[i] = null
+      } else {
+          sourceByLineTransformed[i] = sourceByLineTransformed[i].replace(endBlockRegex, '')
+      }
       action = false
-      sourceByLineTransformed[i] = null
       i += 1
       continue
     }
