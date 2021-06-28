@@ -11,14 +11,16 @@
     "src/",
     "test/"
   ],
-  "dependencies": {},
+  "dependencies": {
+    "dotenv-parse-variables": "^2.0.0"
+  },
   "devDependencies": {
     "standard": "^10.0.2",
     "tap": "^10.7.0",
     "webpack": "^3.4.1"
   },
   "scripts": {
-    "test": "NODE_ENV=PRODUCTION npm run build && tap 'test/index.js'",
+    "test": "NODE_ENV=PRODUCTION FEATURE_FLAG=true npm run build && tap 'test/index.js'",
     "lint": "standard --fix './src/**/*.js' './test/**/.js'",
     "build": "webpack --config webpack.js > /dev/null"
   },

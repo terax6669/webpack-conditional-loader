@@ -3,6 +3,9 @@ const conditionalLoader = require('./src')
 
 module.exports = {
   entry: {
+    'boolean': './test/test-files/boolean.js',
+    'else-falsey': './test/test-files/else-falsey.js',
+    'else-truthy': './test/test-files/else-truthy.js',
     'env-var-truthy': './test/test-files/env-var-truthy.js',
     'env-var-falsey': './test/test-files/env-var-falsey.js',
     'falsey': './test/test-files/falsey.js',
